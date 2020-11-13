@@ -1,0 +1,106 @@
+
+DROP TRIGGER IF EXISTS `basketanalysis2020`.`contains_AFTER_INSERT`;
+
+DELIMITER $$
+USE `basketanalysis2020`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `contains_AFTER_INSERT` AFTER INSERT ON `contains` FOR EACH ROW
+BEGIN 
+	UPDATE transaction t
+    SET t.total_pieces = t.total_pieces + new.pieces
+    WHERE t.transaction_id = new.transaction_transaction_id;
+END ;$$
+DELIMITER ;
+
+--------------------------------------------------------------------------------------------------------------------
+DROP TRIGGER IF EXISTS `basketanalysis2020`.`contains_AFTER_DELETE`;
+
+DELIMITER $$
+USE `basketanalysis2020`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `basketanalysis2020`.`contains_AFTER_DELETE` AFTER DELETE ON `contains` FOR EACH ROW
+BEGIN
+	UPDATE transaction t
+    SET t.total_pieces = t.total_pieces - old.pieces
+    WHERE t.transaction_id = old.transaction_transaction_id;
+END$$
+DELIMITER ;
+
+
+----------------------------------------------------------------------------------------------------------------------
+CREATE DEFINER=`root`@`localhost` TRIGGER `contains_AFTER_INSERT_1` AFTER INSERT ON `contains` FOR EACH ROW BEGIN
+	UPDATE transaction 
+    	SET transaction.total_amount = transaction.total_amount + (new.pieces)*(SELECT price FROM product WHERE barcode = new.product_barcode)
+    	WHERE transaction.transaction_id = new.transaction_transaction_id;
+END
+
+
+------------------------------------------------------------------------------------------------------------------------------
+DROP TRIGGER IF EXISTS `basketanalysis2020`.`contains_AFTER_INSERT_1`;
+
+DELIMITER $$
+USE `basketanalysis2020`$$
+CREATE DEFINER=`root`@`localhost` TRIGGER `contains_AFTER_INSERT_1` AFTER INSERT ON `contains` FOR EACH ROW BEGIN
+	DECLARE datetm DATETIME;
+    SET datetm = (SELECT date_time from transaction WHERE transaction.transaction_id = new.transaction_transaction_id);
+    IF  (SELECT date_time from transaction WHERE transaction.transaction_id = new.transaction_transaction_id) > (SELECT max(end_date) FROM older_prices WHERE barcode = new.product_barcode) THEN
+		UPDATE transaction 
+		SET transaction.total_amount = transaction.total_amount + (new.pieces)*(SELECT price FROM product WHERE barcode = new.product_barcode)
+		WHERE transaction.transaction_id = new.transaction_transaction_id;
+	ELSE 
+		UPDATE transaction 
+        SET transaction.total_amount = transaction.total_amount + (new.pieces)*(SELECT price FROM older_prices WHERE datetm between start_date AND end_date AND barcode = new.product_barcode) 
+        WHERE transaction.transaction_id = new.transaction_transaction_id;
+	END IF;
+END;$$
+DELIMITER ;
+
+--------------------------------------------------------------------------------------------------------------------------------
+DROP TRIGGER IF EXISTS `basketanalysis2020`.`contains_AFTER_DELETE_1`;
+
+DELIMITER $$
+USE `basketanalysis2020`$$
+CREATE DEFINER=`root`@`localhost` TRIGGER `contains_AFTER_DELETE_1` AFTER DELETE ON `contains` FOR EACH ROW BEGIN
+	DECLARE datetm DATETIME;
+    SET datetm = (SELECT date_time from transaction WHERE transaction.transaction_id = old.transaction_transaction_id);
+    IF  (SELECT date_time from transaction WHERE transaction.transaction_id = old.transaction_transaction_id) > (SELECT max(end_date) FROM older_prices WHERE barcode = old.product_barcode) THEN
+		UPDATE transaction 
+		SET transaction.total_amount = transaction.total_amount - (old.pieces)*(SELECT price FROM product WHERE barcode = old.product_barcode)
+		WHERE transaction.transaction_id = old.transaction_transaction_id;
+	ELSE 
+		UPDATE transaction 
+        SET transaction.total_amount = transaction.total_amount - (old.pieces)*(SELECT price FROM older_prices WHERE datetm between start_date AND end_date AND barcode = old.product_barcode) 
+        WHERE transaction.transaction_id = old.transaction_transaction_id;
+	END IF;
+END;$$
+DELIMITER;
+----------------------------------------------------------------------------------------------------------------------------------------
+CREATE DEFINER=`root`@`localhost` TRIGGER `contains_AFTER_UPDATE_1` AFTER UPDATE ON `contains` FOR EACH ROW BEGIN
+	DECLARE datetm DATETIME;
+    SET datetm = (SELECT date_time from transaction WHERE transaction.transaction_id = old.transaction_transaction_id);
+    
+		IF  (SELECT date_time from transaction WHERE transaction.transaction_id = old.transaction_transaction_id) > (SELECT max(end_date) FROM older_prices WHERE barcode = old.product_barcode) THEN
+			UPDATE transaction 
+			SET transaction.total_amount = transaction.total_amount - (old.pieces)*(SELECT price FROM product WHERE barcode = old.product_barcode) + (new.pieces)*(SELECT price FROM product WHERE barcode = new.product_barcode)
+			WHERE transaction.transaction_id = old.transaction_transaction_id;
+		ELSE 
+			UPDATE transaction 
+			SET transaction.total_amount = transaction.total_amount - (old.pieces)*(SELECT price FROM older_prices WHERE datetm between start_date AND end_date AND barcode = old.product_barcode) + (new.pieces)*(SELECT price FROM older_prices WHERE datetm between start_date AND end_date AND barcode = new.product_barcode)
+			WHERE transaction.transaction_id = old.transaction_transaction_id;
+		END IF;
+   
+	
+END
+
+-------------------------------------------------------------------------------------------------------------------------
+CREATE DEFINER=`root`@`localhost` TRIGGER `contains_AFTER_UPDATE` AFTER UPDATE ON `contains` FOR EACH ROW BEGIN
+    IF (new.pieces > old.pieces) THEN 
+		UPDATE transaction t
+		SET t.total_pieces = t.total_pieces + new.pieces - old.pieces
+        WHERE t.transaction_id = new.transaction_transaction_id = old.transaction_transaction_id;
+    ELSE 
+		UPDATE transaction t
+		SET t.total_pieces = t.total_pieces - old.pieces + new.pieces
+        WHERE t.transaction_id = new.transaction_transaction_id = old.transaction_transaction_id;
+	END IF ;
+END
+
+
