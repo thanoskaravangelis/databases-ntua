@@ -5,7 +5,7 @@ We created a database containing info about the customers,products,stores e.t.c 
 For the client-server communication we used `Apache Web Server` . \
 For the server side we used `PHP` and `PHPMyAdmin` . \
 For the client side (UI) we used mainly `HTML` and some `JavaScript`(diagrams). \
-We also used `CSS` for the styling of our application.\
+We also used `CSS` for the styling of our application. \
 * Team Members: \
 <Karavangelis Thanos thanosblv@gmail.com    Github:thanoskaravangelis> \
 <Mantzoutas Andreas  anmantzoutas@gmail.com Github:andrmantz>
